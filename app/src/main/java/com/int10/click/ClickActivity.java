@@ -1,16 +1,23 @@
 package com.int10.click;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
 
 /**
  * Created by int10 on 2017/9/15.
@@ -20,17 +27,72 @@ public class ClickActivity extends AppCompatActivity {
 	private ImageView iv;
 	MediaPlayer m_mediaplayer=null;
 	protected Context m_context = this;
+	boolean m_initrectmaped = false;
+	String m_workpath = null;
+	RectMapList m_rectmaplist;
+
+
+	private class RectMap {
+		public Rect rect = new Rect();
+		public String target = null;
+	}
+
+	private class RectMapList{
+		private ArrayList<RectMap> rectmaps = new ArrayList<RectMap>();
+		public void AddItem(RectMap item) {
+			rectmaps.add(item);
+		}
+		public String GetTarget(int x, int y) {
+			for(RectMap item : rectmaps){
+				if(item.rect.contains(x, y)) {
+					return item.target;
+				}
+			}
+			return null;
+		}
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_click);
-		init();
+		Init();
 	}
 
-	private void init() {
+	private void Init() {
+		Intent intent=getIntent();
+		Bundle bundle=intent.getExtras();
+		m_workpath = bundle.getString("workpath");
+		InitRectMapList();
 		iv = (ImageView) findViewById(R.id.ivClickBackGround);
 		iv.setOnTouchListener(new ClickActivity.TouchListenerImp());
+		iv.setImageURI(Uri.parse(m_workpath + "/back.jpg"));
+	}
+
+	private void InitRectMapList(){
+		if(m_initrectmaped) {return;}
+		m_rectmaplist = new RectMapList();
+		FileInputStream inputStream = null;
+		try {
+			inputStream = new FileInputStream(m_workpath + "/config.txt");
+			byte [] buf = new byte[inputStream.available()];
+			inputStream.read(buf);
+			inputStream.close();
+			String bufstr = new String(buf);
+			String[] itemstrlist = bufstr.split("\n");
+			for(String s : itemstrlist){
+				String[] infostrlsit = s.split(",");
+				RectMap rectmap = new RectMap();
+				rectmap.rect.set(Integer.parseInt(infostrlsit[0]), Integer.parseInt(infostrlsit[1]), Integer.parseInt(infostrlsit[2]), Integer.parseInt(infostrlsit[3]));
+				rectmap.target = infostrlsit[4];
+				m_rectmaplist.AddItem(rectmap);
+			}
+			m_initrectmaped = true;
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private class TouchListenerImp implements ImageView.OnTouchListener {
@@ -40,7 +102,7 @@ public class ClickActivity extends AppCompatActivity {
 			x = (int) event.getX();
 			y = (int) event.getY();
 
-			//获取图片大小
+			//get pic size
 			BitmapDrawable bitmapDrawable = (BitmapDrawable) iv.getDrawable();
 			int bw  = bitmapDrawable.getBitmap().getWidth();
 			int bh = bitmapDrawable.getBitmap().getHeight();
@@ -62,10 +124,6 @@ public class ClickActivity extends AppCompatActivity {
 			int cw = (int)(dw * sx);
 			int ch = (int)(dh * sy);
 
-			Rect rect = new Rect();
-			rect.set(360*cw/bw, 285*ch/bh, (360+67)*cw/bw, (285+67)*ch/bh);
-
-			//360 285 67 67
 			switch (eventaction) {
 				case MotionEvent.ACTION_DOWN:
 					break;
@@ -74,9 +132,21 @@ public class ClickActivity extends AppCompatActivity {
 					break;
 
 				case MotionEvent.ACTION_UP:
-					if(rect.contains(x, y))	{
-						PlayMedia(Environment.getExternalStorageDirectory().getPath() + "/1.mp3");
+					//event的xy转换成图片上的xy
+					int imgx, imgy;
+					imgx = x*bw/cw;
+					imgy = y*bh/ch;
+					String target = m_rectmaplist.GetTarget(imgx, imgy);
+
+					if(target != null) {
+						Log.v("int10", m_workpath + "/" + target);
+						PlayMedia(m_workpath + "/" + target);
+//						PlayMedia(Environment.getExternalStorageDirectory().getPath() + "/int10click/2.mp3");
 					}
+
+//					if(rect.contains(x, y))	{
+//						PlayMedia(Environment.getExternalStorageDirectory().getPath() + "/1.mp3");
+//					}
 					break;
 			}
 			return true;
@@ -92,7 +162,7 @@ public class ClickActivity extends AppCompatActivity {
 		}
 		try {
 			m_mediaplayer = new MediaPlayer();
-			m_mediaplayer.setDataSource(path);
+			m_mediaplayer.setDataSource(ClickActivity.this, Uri.parse(path));
 			m_mediaplayer.prepare();
 			m_mediaplayer.start();
 			result = true;

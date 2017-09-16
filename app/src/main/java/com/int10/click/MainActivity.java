@@ -2,6 +2,7 @@ package com.int10.click;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -31,10 +32,10 @@ public class MainActivity extends AppCompatActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
-		init();
+		Init();
 	}
 
-	private void init() {
+	private void Init() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			int permission = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
 			if (permission != PackageManager.PERMISSION_GRANTED) {
@@ -62,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	private void InitDirList(){
+	private void InitDirList() {
 		m_rootdir = new File(ROOTDIR);
 		m_curdir = m_rootdir;
 		m_curfiles = m_rootdir.listFiles();
@@ -71,42 +72,62 @@ public class MainActivity extends AppCompatActivity {
 
 	public class FileListAdapter extends BaseAdapter {
 		@Override
-		public int getCount() {	return m_curfiles.length;}
+		public int getCount() {
+			return m_curfiles.length;
+		}
+
 		@Override
-		public Object getItem(int position) { return m_curfiles[position]; }
+		public Object getItem(int position) {
+			return m_curfiles[position];
+		}
+
 		@Override
-		public long getItemId(int position) { return position; }
+		public long getItemId(int position) {
+			return position;
+		}
+
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
-			LayoutInflater layout_inflater = (LayoutInflater) MainActivity.this.getSystemService ( Context.LAYOUT_INFLATER_SERVICE );
-			View layout = layout_inflater.inflate ( R.layout.item_filelist, null );
+			LayoutInflater layout_inflater = (LayoutInflater) MainActivity.this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+			View layout = layout_inflater.inflate(R.layout.item_filelist, null);
 			TextView tvname = (TextView) layout.findViewById(R.id.tvFileListItem);
 			tvname.setText(m_curfiles[position].getName());
 			return layout;
 		}
 	}
+
 	public class fileItemListener implements AdapterView.OnItemClickListener {
 		@Override
 		public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-			if(m_curfiles[position].isDirectory()){
-				m_curdir = m_curfiles[position];
-				m_curfiles = m_curdir.listFiles();
-				m_lvfilelist.setAdapter(m_flada);
-			}
-			else
-			{
-//				if(currentFiles[position].getName().endsWith(".mp4"))
-//				{
-//					String filename;
-//					Intent intent=new Intent();
-//					intent.setClass(VideoListActivity.this, videoplayActivity.class);
-//					filename = currentFiles[position].getPath();
-//					debugMsg(filename);
-//					intent.putExtra("filename", filename);
-//					startActivityForResult(intent, REQUEST_CODE);
-//
-//
-//				}
+			if (m_curfiles[position].isDirectory()) {
+				File curdir;
+				curdir = m_curfiles[position];
+				File[] curfiles = curdir.listFiles();
+				boolean findconfig = false, findback = false;
+				//search config.txt and back.jpg , if all exist means it can play..if not ,enter this dir.
+				for (File f : curfiles) {
+					if (f.isFile() && f.getName().equals("config.txt")) {
+						findconfig = true;
+					}
+					if (f.isFile() && f.getName().equals("back.jpg")) {
+						findback = true;
+					}
+					if (findback && findconfig) {
+						break;
+					}
+				}
+				if (findback && findconfig) {
+					Intent intent = new Intent();
+					intent.setClass(MainActivity.this, ClickActivity.class);
+					//Log.v("int10", curdir.getAbsolutePath());
+					intent.putExtra("workpath", curdir.getAbsolutePath());
+					startActivity(intent);
+				} else {
+					m_curdir = m_curfiles[position];
+					m_curfiles = m_curdir.listFiles();
+					m_lvfilelist.setAdapter(m_flada);
+				}
+
 			}
 		}
 	}

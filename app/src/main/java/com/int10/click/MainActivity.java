@@ -50,6 +50,9 @@ public class MainActivity extends AppCompatActivity {
 		m_lvfilelist = (ListView) findViewById(R.id.lvFileList);
 		m_lvfilelist.setAdapter(m_flada);
 		m_lvfilelist.setOnItemClickListener(new fileItemListener());
+
+//		ButtonMapList bulist = new ButtonMapList();
+//		bulist.Xml2List(Environment.getExternalStorageDirectory().getPath() + "/int10click/SZ_1A/page002/DialogButtonConfig.xml");
 	}
 
 	@Override
@@ -106,10 +109,10 @@ public class MainActivity extends AppCompatActivity {
 				boolean findconfig = false, findback = false;
 				//search config.txt and back.jpg , if all exist means it can play..if not ,enter this dir.
 				for (File f : curfiles) {
-					if (f.isFile() && f.getName().equals("config.txt")) {
+					if (f.isFile() && f.getName().equals("DialogButtonConfig.xml")) {
 						findconfig = true;
 					}
-					if (f.isFile() && f.getName().equals("back.jpg")) {
+					if (f.isFile() && f.getName().equals("bg.jpg")) {
 						findback = true;
 					}
 					if (findback && findconfig) {
@@ -141,4 +144,10 @@ public class MainActivity extends AppCompatActivity {
 			m_lvfilelist.setAdapter(m_flada);
 		}
 	}
+
+
+
+
+
+
 }

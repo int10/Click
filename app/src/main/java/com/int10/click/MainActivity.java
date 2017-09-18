@@ -119,7 +119,6 @@ public class MainActivity extends AppCompatActivity {
 				if (findback && findconfig) {
 					Intent intent = new Intent();
 					intent.setClass(MainActivity.this, ClickActivity.class);
-					//Log.v("int10", curdir.getAbsolutePath());
 					intent.putExtra("workpath", curdir.getAbsolutePath());
 					startActivity(intent);
 				} else {
@@ -127,7 +126,6 @@ public class MainActivity extends AppCompatActivity {
 					m_curfiles = m_curdir.listFiles();
 					m_lvfilelist.setAdapter(m_flada);
 				}
-
 			}
 		}
 	}
@@ -135,15 +133,12 @@ public class MainActivity extends AppCompatActivity {
 	@Override
 	public void onBackPressed()
 	{
-		if(m_curdir.equals(m_rootdir))
+		if(m_curdir.equals(m_rootdir)) {
 			this.finish();
-		else
-		{
+		} else {
 			m_curdir = m_curdir.getParentFile();
 			m_curfiles = m_curdir.listFiles();
 			m_lvfilelist.setAdapter(m_flada);
 		}
 	}
-
-
 }

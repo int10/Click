@@ -9,7 +9,6 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
@@ -127,10 +126,8 @@ public class ClickActivity extends AppCompatActivity {
 			switch (eventaction) {
 				case MotionEvent.ACTION_DOWN:
 					break;
-
 				case MotionEvent.ACTION_MOVE:
 					break;
-
 				case MotionEvent.ACTION_UP:
 					//event的xy转换成图片上的xy
 					int imgx, imgy;
@@ -139,14 +136,8 @@ public class ClickActivity extends AppCompatActivity {
 					String target = m_rectmaplist.GetTarget(imgx, imgy);
 
 					if(target != null) {
-						Log.v("int10", m_workpath + "/" + target);
 						PlayMedia(m_workpath + "/" + target);
-//						PlayMedia(Environment.getExternalStorageDirectory().getPath() + "/int10click/2.mp3");
 					}
-
-//					if(rect.contains(x, y))	{
-//						PlayMedia(Environment.getExternalStorageDirectory().getPath() + "/1.mp3");
-//					}
 					break;
 			}
 			return true;

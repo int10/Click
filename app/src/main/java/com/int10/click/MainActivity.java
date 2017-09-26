@@ -122,7 +122,8 @@ public class MainActivity extends AppCompatActivity {
 				if (findback && findconfig) {
 					Intent intent = new Intent();
 					intent.setClass(MainActivity.this, ClickActivity.class);
-					intent.putExtra("workpath", curdir.getAbsolutePath());
+					intent.putExtra("rootpath", curdir.getParent());
+					intent.putExtra("position", position);
 					startActivity(intent);
 				} else {
 					m_curdir = m_curfiles[position];

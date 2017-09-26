@@ -2,16 +2,19 @@ package com.int10.click;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.constraint.ConstraintLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -33,12 +36,16 @@ import javax.xml.parsers.ParserConfigurationException;
  */
 
 public class ClickActivity extends AppCompatActivity {
-	private ImageView iv;
+	private ImageView m_iv, m_ivmask;
 	MediaPlayer m_mediaplayer=null;
 	protected Context m_context = this;
 	boolean m_initrectmaped = false;
+	String m_rootpath = null;
 	String m_workpath = null;
 	ButtonMapList m_buttonmaplist = null;
+	int m_downx, m_downy;
+	File[] m_files;
+	int m_position;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -50,12 +57,18 @@ public class ClickActivity extends AppCompatActivity {
 	private void Init() {
 		Intent intent=getIntent();
 		Bundle bundle=intent.getExtras();
-		m_workpath = bundle.getString("workpath");
+		m_rootpath = bundle.getString("rootpath");
+		File rootdir = new File(m_rootpath);
+		m_files = rootdir.listFiles();
+		m_position = bundle.getInt("position");
+		m_workpath = m_files[m_position].getAbsolutePath();
 
-		InitRectMapList();
-		iv = (ImageView) findViewById(R.id.ivClickBackGround);
-		iv.setOnTouchListener(new ClickActivity.TouchListenerImp());
-		iv.setImageURI(Uri.parse(m_workpath + "/bg.jpg"));
+		m_iv = (ImageView) findViewById(R.id.ivClickBackGround);
+		m_iv.setOnTouchListener(new ClickActivity.TouchListenerImp());
+		m_ivmask = (ImageView) findViewById(R.id.ivMask);
+		m_ivmask.setVisibility(View.INVISIBLE);
+
+		RefreshPage();
 	}
 
 	private void InitRectMapList(){
@@ -74,16 +87,16 @@ public class ClickActivity extends AppCompatActivity {
 			y = (int) event.getY();
 
 			//get pic size
-			BitmapDrawable bitmapDrawable = (BitmapDrawable) iv.getDrawable();
+			BitmapDrawable bitmapDrawable = (BitmapDrawable) m_iv.getDrawable();
 			int bw  = bitmapDrawable.getBitmap().getWidth();
 			int bh = bitmapDrawable.getBitmap().getHeight();
 
 			//获得ImageView中Image的真实宽高，
-			int dw = iv.getDrawable().getBounds().width();
-			int dh = iv.getDrawable().getBounds().height();
+			int dw = m_iv.getDrawable().getBounds().width();
+			int dh = m_iv.getDrawable().getBounds().height();
 
 			//获得ImageView中Image的变换矩阵
-			Matrix m = iv.getImageMatrix();
+			Matrix m = m_iv.getImageMatrix();
 			float[] values = new float[10];
 			m.getValues(values);
 
@@ -97,19 +110,48 @@ public class ClickActivity extends AppCompatActivity {
 
 			switch (eventaction) {
 				case MotionEvent.ACTION_DOWN:
+					m_downx = x;
+					m_downy = y;
 					break;
 				case MotionEvent.ACTION_MOVE:
 					break;
 				case MotionEvent.ACTION_UP:
-					//event的xy转换成图片上的xy
-					int imgx, imgy;
-					imgx = x*bw/cw;
-					imgy = y*bh/ch;
-					//String target = m_rectmaplist.GetTarget(imgx, imgy);
-					String target = m_buttonmaplist.GetSoundPath(imgx, imgy);
+					if(Math.abs(x - m_downx) > 100 && Math.abs(y - m_downy) < 100) {
+						if(x > m_downx) {
+							//pre page;
+							PrePage();
+						} else {
+							//next page;
+							NextPage();
+						}
+						return false;
+					} else {
 
-					if(target != null) {
-						PlayMedia(m_workpath + "/" + target);
+						//event的xy转换成图片上的xy
+						int imgx, imgy;
+						imgx = x * bw / cw;
+						imgy = y * bh / ch;
+						//String target = m_rectmaplist.GetTarget(imgx, imgy);
+						ButtonMapList.ButtonMap target = m_buttonmaplist.GetSoundPath(imgx, imgy);
+
+						if (target != null) {
+							//把图片里的x,y,w,h转换成屏幕上的xywh
+							int scrx, scry, scrw, scrh;
+							scrx = (int) (target.x * cw / bw);
+							scry = (int) (target.y * ch / bh);
+							scrw = (int) (target.width * cw / bw);
+							scrh = (int) (target.height * ch / bh);
+							Bitmap bitmap = Bitmap.createBitmap(((BitmapDrawable) m_iv.getDrawable()).getBitmap(), (int) target.x, (int) target.y, (int) target.width, (int) target.height);
+
+							ConstraintLayout.LayoutParams layoutParams = (ConstraintLayout.LayoutParams) m_ivmask.getLayoutParams();
+							layoutParams.setMargins(scrx - 20, scry - 20, 0, 0);
+							layoutParams.width = scrw + 40;
+							layoutParams.height = scrh + 40;
+							m_ivmask.setLayoutParams(layoutParams);
+							m_ivmask.setImageBitmap(bitmap);
+							m_ivmask.setVisibility(View.VISIBLE);
+							PlayMedia(m_workpath + "/" + target.soundpath);
+						}
 					}
 					break;
 			}
@@ -127,12 +169,20 @@ public class ClickActivity extends AppCompatActivity {
 		try {
 			m_mediaplayer = new MediaPlayer();
 			m_mediaplayer.setDataSource(ClickActivity.this, Uri.parse(path));
+			m_mediaplayer.setOnCompletionListener(new MediaPlayerCompletionListener());
 			m_mediaplayer.prepare();
 			m_mediaplayer.start();
 			result = true;
 		} catch (Exception e) {
 		}
 		return result;
+	}
+
+	private class MediaPlayerCompletionListener implements MediaPlayer.OnCompletionListener {
+		@Override
+		public void onCompletion(MediaPlayer mediaPlayer) {
+			m_ivmask.setVisibility(View.INVISIBLE);
+		}
 	}
 
 	@Override
@@ -143,6 +193,37 @@ public class ClickActivity extends AppCompatActivity {
 			m_mediaplayer = null;
 		}
 		super.onDestroy();
+	}
+
+	private void PrePage() {
+		if(m_position == 0) {
+			Toast.makeText(ClickActivity.this, "已经是第一页" , Toast.LENGTH_SHORT).show();
+		} else {
+			m_position--;
+			RefreshPage();
+		}
+	}
+
+	private void NextPage() {
+		if(m_position >= m_files.length) {
+			Toast.makeText(ClickActivity.this, "已经是最后一页" , Toast.LENGTH_SHORT).show();
+		} else {
+			m_position++;
+			RefreshPage();
+		}
+	}
+
+	private void RefreshPage() {
+		if(m_mediaplayer != null) {
+			m_mediaplayer.stop();
+			m_mediaplayer.release();
+			m_mediaplayer = null;
+		}
+		m_ivmask.setVisibility(View.INVISIBLE);
+		m_initrectmaped = false;
+		m_workpath = m_files[m_position].getAbsolutePath();
+		InitRectMapList();
+		m_iv.setImageURI(Uri.parse(m_workpath + "/bg.jpg"));
 	}
 
 	public class ButtonMapList {
@@ -187,10 +268,10 @@ public class ClickActivity extends AppCompatActivity {
 					m_list.add(bm);
 				}
 			}
-			for(ButtonMap bm : m_list) {
-				Log.e("int10", bm.x + " " + bm.y + " " + bm.width + " " + bm.height + " " + bm.id + " " + bm.soundpath + " ");
-				Log.e("int10", "000x" + String.valueOf((bm.x)));
-			}
+//			for(ButtonMap bm : m_list) {
+//				Log.e("int10", bm.x + " " + bm.y + " " + bm.width + " " + bm.height + " " + bm.id + " " + bm.soundpath + " ");
+//				Log.e("int10", "000x" + String.valueOf((bm.x)));
+//			}
 			return true;
 		}
 
@@ -223,10 +304,10 @@ public class ClickActivity extends AppCompatActivity {
 			return bm;
 		}
 
-		String GetSoundPath(float imgx, float imgy) {
+		ButtonMap GetSoundPath(float imgx, float imgy) {
 			for(ButtonMap bm : m_list) {
 				if(imgx > bm.x && imgx < (bm.x + bm.width) && imgy > bm.y && imgy < (bm.y + bm.height)) {
-					return bm.soundpath;
+					return bm;
 				}
 			}
 			return null;

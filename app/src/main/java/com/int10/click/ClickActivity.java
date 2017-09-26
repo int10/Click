@@ -2,6 +2,7 @@ package com.int10.click;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
@@ -13,6 +14,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -50,6 +52,8 @@ public class ClickActivity extends AppCompatActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);//设置成全屏模式
+		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);//强制为竖屏
 		setContentView(R.layout.activity_click);
 		Init();
 	}
@@ -205,7 +209,7 @@ public class ClickActivity extends AppCompatActivity {
 	}
 
 	private void NextPage() {
-		if(m_position >= m_files.length) {
+		if(m_position + 1>= m_files.length) {
 			Toast.makeText(ClickActivity.this, "已经是最后一页" , Toast.LENGTH_SHORT).show();
 		} else {
 			m_position++;

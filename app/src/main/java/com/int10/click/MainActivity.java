@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -18,8 +19,18 @@ import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public class MainActivity extends AppCompatActivity {
 	protected int m_requestcode = 100;
@@ -54,9 +65,6 @@ public class MainActivity extends AppCompatActivity {
 		m_lvfilelist = (ListView) findViewById(R.id.lvFileList);
 		m_lvfilelist.setAdapter(m_flada);
 		m_lvfilelist.setOnItemClickListener(new fileItemListener());
-
-//		ButtonMapList bulist = new ButtonMapList();
-//		bulist.Xml2List(Environment.getExternalStorageDirectory().getPath() + "/int10click/SZ_1A/page002/DialogButtonConfig.xml");
 	}
 
 	@Override
@@ -71,6 +79,18 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void InitDirList() {
+		if (!isFileExists(getApplicationInfo().dataDir + "/inited")) {
+			if (copyAssetsToFilesystem("todo.zip", getApplicationInfo().dataDir + "/todo.zip")) {
+				if (!unZip(getApplicationInfo().dataDir + "/todo.zip", ROOTDIR)) {
+					Toast.makeText(this, "解压数据出错，请重装！", Toast.LENGTH_SHORT).show();
+					return;
+				}
+				tryCreateFile(new File(getApplicationInfo().dataDir + "/inited"));
+			} else {
+				Toast.makeText(this, "拷贝文件出错，请重装！", Toast.LENGTH_SHORT).show();
+				return;
+			}
+		}
 		m_rootdir = new File(ROOTDIR);
 		m_curdir = m_rootdir;
 		m_curfiles = m_rootdir.listFiles();
@@ -150,9 +170,118 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
+	private final int BUFFER_LENGTH = 1024;
 
+	public byte[] getBufByte() {
+		return new byte[BUFFER_LENGTH];
+	}
+	private boolean unZip(String zipFile, String targetPath) {
+		String strEntry; //保存每个zip的条目名称
 
+		try {
+			BufferedOutputStream dest = null; //缓冲输出流
+			FileInputStream fis = new FileInputStream(zipFile);
+			ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+			ZipEntry entry; //每个zip条目的实例
 
+			while ((entry = zis.getNextEntry()) != null) {
+				int count;
+				byte data[] = getBufByte();
+				strEntry = entry.getName();
 
+				File entryFile = new File(targetPath + File.separator + strEntry);
+				createDir(entryFile.getParent());
 
+				FileOutputStream fos = new FileOutputStream(entryFile);
+				dest = new BufferedOutputStream(fos, BUFFER_LENGTH);
+				while ((count = zis.read(data, 0, BUFFER_LENGTH)) != -1) {
+					dest.write(data, 0, count);
+				}
+				dest.flush();
+				dest.close();
+			}
+			zis.close();
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	public static boolean createDir(String path) {
+		return createDir(new File(path));
+	}
+
+	public static boolean createDir(File file) {
+		if(!file.exists()) {
+			if(!createDir(file.getParent())){
+				return false;
+			}
+			if(!file.mkdir()){
+				return false;
+			}
+		} else {
+			if(file.isFile()) {
+				file.delete();
+				if(!file.mkdir()){
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	private boolean copyAssetsToFilesystem(String assetsSrc, String des){
+		InputStream istream = null;
+		OutputStream ostream = null;
+		try{
+			Context context  = getApplication();
+			AssetManager am = context.getAssets();
+			istream = am.open(assetsSrc);
+			ostream = new FileOutputStream(des);
+			byte[] buffer = new byte[1024];
+			int length;
+			while ((length = istream.read(buffer))>0){
+				ostream.write(buffer, 0, length);
+			}
+			istream.close();
+			ostream.close();
+		}
+		catch(Exception e){
+			e.printStackTrace();
+			try{
+				if(istream!=null)
+					istream.close();
+				if(ostream!=null)
+					ostream.close();
+			}
+			catch(Exception ee){
+				ee.printStackTrace();
+			}
+			return false;
+		}
+		return true;
+	}
+
+	public static boolean isFileExists(String filepath) {
+		return isFileExists(new File(filepath));
+	}
+
+	public static boolean isFileExists(File file) {
+		boolean exists = true;
+		if ((!file.exists()) || (file.exists() && !file.isFile())) {
+			exists = false;
+		}
+		return exists;
+	}
+
+	public static void tryCreateFile(File file) {
+		if (!isFileExists(file)) {
+			file.delete();
+			try {
+				file.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
 }
